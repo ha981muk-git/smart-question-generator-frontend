@@ -71,7 +71,7 @@ const QuestionPaperGenerator = () => {
     setSuccess('');
 
     try {
-      console.log('Sending request with data:', formData);
+      // console.log('Sending request with data:', formData); // testing log browser console output
       
       // Try different URL variations
       const urls = [

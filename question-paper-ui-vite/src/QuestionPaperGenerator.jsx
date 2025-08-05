@@ -6,7 +6,7 @@ const QuestionPaperGenerator = () => {
     grade: '',
     subject: '',
     topics: [],
-    totalMarks: 50,
+    total_marks: 50,
     duration: 120,
     questionTypes: ['mcq', 'short', 'long']
   });
@@ -42,6 +42,7 @@ const QuestionPaperGenerator = () => {
     }));
   };
 
+
   const addTopic = () => {
     if (topicInput.trim() && !formData.topics.includes(topicInput.trim())) {
       setFormData(prev => ({
@@ -58,7 +59,7 @@ const QuestionPaperGenerator = () => {
       topics: prev.topics.filter(topic => topic !== topicToRemove)
     }));
   };
-
+   console.log(formData)
   const generateQuestionPaper = async () => {
     if (!formData.grade || !formData.subject || formData.topics.length === 0) {
       setError('Please fill in all required fields');
@@ -70,24 +71,67 @@ const QuestionPaperGenerator = () => {
     setSuccess('');
 
     try {
-      const response = await fetch('http://localhost:8000/api/generate-paper/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData)
-      });
+      console.log('Sending request with data:', formData);
+      
+      // Try different URL variations
+      const urls = [
+        '/api/generate-paper/', // Use Vite proxy
+        'http://127.0.0.1:8000/api/generate-paper/', // Django server endpoint  
+        'http://localhost:8000/api/generate-paper/'
+      ];
+      
+      let response;
+      let lastError;
+      
+      for (const url of urls) {
+        try {
+          console.log('Trying URL:', url);
+          response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+          });
+          console.log('Response received from:', url);
+          break; // If successful, break out of loop
+        } catch (error) {
+          console.log('Failed with URL:', url, 'Error:', error.message);
+          lastError = error;
+          continue; // Try next URL
+        }
+      }
+      
+      if (!response) {
+        throw lastError || new Error('All server URLs failed');
+      }
+
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
 
       if (!response.ok) {
-        throw new Error('Failed to generate question paper');
+        const errorText = await response.text();
+        console.error('Server error response:', errorText);
+        throw new Error(`Server error: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
+      console.log('Received data:', data);
       setGeneratedPaper(data);
       setSuccess('Question paper generated successfully!');
     } catch (err) {
-      setError('Failed to generate question paper. Please try again.');
-      console.error('Error:', err);
+      console.error('Full error details:', err);
+      console.error('Error name:', err.name);
+      console.error('Error message:', err.message);
+      
+      // Check if it's a network error
+      if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        setError('Network error: Cannot connect to server. Please check if the backend is running.');
+      } else if (err.message.includes('CORS')) {
+        setError('CORS error: Server is not configured to accept requests from this domain.');
+      } else {
+        setError(`Error: ${err.message}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -207,8 +251,8 @@ const QuestionPaperGenerator = () => {
                 </label>
                 <input
                   type="number"
-                  name="totalMarks"
-                  value={formData.totalMarks}
+                  name="total_marks"
+                  value={formData.total_marks}
                   onChange={handleInputChange}
                   min="10"
                   max="100"
